@@ -23,6 +23,8 @@ services:
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
+    command: standalone
+  
     depends_on:
       - postgres
     ports:
@@ -39,3 +41,4 @@ services:
 volumes:
   airflow_logs:
   airflow_files:
+
