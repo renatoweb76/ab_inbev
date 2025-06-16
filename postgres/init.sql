@@ -25,9 +25,10 @@ CREATE TABLE IF NOT EXISTS dw.dim_brewery_name (
 -- Dimensão: Tempo
 CREATE TABLE IF NOT EXISTS dw.dim_time (
     time_id SERIAL PRIMARY KEY,
-    full_date DATE UNIQUE,
+    full_date DATE NOT NULL UNIQUE,
     year INT,
     month INT,
+    quarter INT,
     day INT,
     day_of_week INT,
     week_of_year INT

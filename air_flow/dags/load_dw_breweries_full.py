@@ -33,13 +33,13 @@ default_args = {
 
 with DAG(
     dag_id='load_dw_breweries_full',
-    schedule_interval=None,  # Executa manualmente
+    schedule_interval=None,
     catchup=False,
     default_args=default_args,
     description='Carga FULL das dimensões e fato no DW (reset e recarga total)'
 ) as dag:
 
-    # Tasks para truncar cada tabela antes da carga (opcional, mas recomendado)
+    # Tasks para truncar cada tabela antes da carga
     t_trunc_dim_location = PythonOperator(
         task_id='truncate_dim_location',
         python_callable=truncate_table,
@@ -56,12 +56,6 @@ with DAG(
         task_id='truncate_dim_brewery_name',
         python_callable=truncate_table,
         op_args=['dim_brewery_name']
-    )
-
-    t_trunc_dim_time = PythonOperator(
-        task_id='truncate_dim_time',
-        python_callable=truncate_table,
-        op_args=['dim_time']
     )
 
     t_trunc_fact = PythonOperator(
@@ -93,6 +87,7 @@ with DAG(
 
     # ===== Dependências =====
     # Truncamento em paralelo
-    [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_dim_time, t_trunc_fact] >> \
-    [t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_dim_time]
-    [t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_dim_time] >> t_load_fact
+    [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact] >> \
+    [t_load_dim_location, t_load_dim_type, t_load_dim_name]
+    [t_load_dim_location, t_load_dim_type, t_load_dim_name] >> t_load_fact
+

@@ -41,24 +41,6 @@ def generate_gold_files_incremental():
         df_name = df_name_new
     df_name.to_parquet(dim_brewery_name_file, index=False)
 
-    # -------- Dimensão: Tempo ----------
-    dim_time_file = os.path.join(gold_path, 'dim_time.parquet')
-    current_date = pd.Timestamp.today().normalize()
-    df_time_new = pd.DataFrame({
-        'full_date': [current_date],
-        'year': [current_date.year],
-        'month': [current_date.month],
-        'day': [current_date.day],
-        'day_of_week': [current_date.dayofweek],
-        'week_of_year': [current_date.isocalendar().week]
-    })
-    if os.path.exists(dim_time_file):
-        df_time_old = pd.read_parquet(dim_time_file)
-        df_time = pd.concat([df_time_old, df_time_new]).drop_duplicates(subset=['full_date'])
-    else:
-        df_time = df_time_new
-    df_time.to_parquet(dim_time_file, index=False)
-
     # -------- Fato: Breweries ----------
     fact_file = os.path.join(gold_path, 'fact_breweries_raw.parquet')
     df_fact_new = df_new[['id', 'name', 'city', 'state', 'country', 'brewery_type',

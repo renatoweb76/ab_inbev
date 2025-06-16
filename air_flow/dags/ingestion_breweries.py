@@ -29,7 +29,7 @@ with DAG(
     schedule_interval='@daily',
     catchup=False,
     default_args=default_args,
-    description='Pipeline ETL de ingestão das cervejarias (bronze → silver → gold)'
+    description='Pipeline ETL de ingestão das cervejarias (bronze, silver, gold)'
 ) as dag:
 
     # Bronze

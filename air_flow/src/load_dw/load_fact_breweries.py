@@ -31,7 +31,7 @@ def load_fact_breweries():
     ]]
 
     fact_df.to_sql('fact_breweries', engine, schema='dw', if_exists='append', index=False)
-    print("[LOAD] Fato carregado com join correto na dimensão tempo.")
+    print("[LOAD] Fato carregado com sucesso.")
 
 if __name__ == "__main__":
     load_fact_breweries()
