@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 
 # Carrega dados da dimensão tempo
 def load_dim_time():
-    path = '/tmp/gold/dim_time.parquet'
+    path = '/files/gold/dim_time.parquet'
     df = pd.read_parquet(path)
 
     engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')

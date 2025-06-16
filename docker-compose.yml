@@ -33,9 +33,9 @@ services:
       - ./air_flow/src:/opt/airflow/src
       # Para persistência dos dados do Airflow (opcional, mas recomendado)
       - airflow_logs:/opt/airflow/logs
-      - airflow_tmp:/opt/airflow/tmp
+      - airflow_files:/opt/airflow/files
     # user: "50000:0" # Use se precisar ajustar permissões
 
 volumes:
   airflow_logs:
-  airflow_tmp:
+  airflow_files:
