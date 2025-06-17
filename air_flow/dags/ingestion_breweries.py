@@ -6,16 +6,14 @@ import os
 
 # ==== Adicionando src ao sys.path ====
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC_PATH = os.path.join(BASE_DIR, 'src')
-
+SRC_PATH = '/opt/airflow/src'
 sys.path.append(SRC_PATH)
 
 # ==== Importando funções principais ====
 
-import air_flow.src.bronze_layer_full as fetch_raw_data
-import air_flow.src.silver_layer_full as transform_and_partition
-import air_flow.src.gold_layer_full as generate_gold_files
+from bronze_layer_full import fetch_raw_data
+from silver_layer_full import transform_and_partition
+from gold_layer_full import generate_gold_files
 
 # ==== Configuração da DAG ====
 

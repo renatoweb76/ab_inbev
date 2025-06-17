@@ -6,8 +6,9 @@ import sys
 import os
 
 # ==== Adicionando src/load_dw ao sys.path ====
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC_PATH = os.path.join(BASE_DIR, 'src')
+SRC_PATH = '/opt/airflow/src'
+sys.path.append(SRC_PATH)
+
 LOAD_DW_PATH = os.path.join(SRC_PATH, 'load_dw')
 sys.path.append(LOAD_DW_PATH)
 
