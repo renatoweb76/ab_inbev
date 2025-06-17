@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 def load_fact_breweries():
-    path = '/files/gold/fact_breweries_raw.parquet'
+    path = '/opt/airflow/files/gold/fact_breweries_raw.parquet'
     df = pd.read_parquet(path)
 
     engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')

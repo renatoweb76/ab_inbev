@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 
 # Carrega dados da dimensão tipo de cervejaria
 def load_dim_brewery_type():
-    path = '/files/gold/dim_brewery_type.parquet'
+    path = '/opt/airflow/files/gold/dim_brewery_type.parquet'
     df = pd.read_parquet(path)
 
     engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')

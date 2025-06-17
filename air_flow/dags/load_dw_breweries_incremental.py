@@ -19,7 +19,7 @@ import pandas as pd
 
 def incremental_load_dim_location():
     try:
-        parquet_path = '/files/gold/dim_location.parquet'
+        parquet_path = '/opt/airflow/files/gold/dim_location.parquet'
         df_new = pd.read_parquet(parquet_path)
         engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
         df_existing = pd.read_sql('SELECT city, state, country FROM dw.dim_location', engine)
@@ -37,7 +37,7 @@ def incremental_load_dim_location():
 
 def incremental_load_dim_brewery_type():
     try:
-        parquet_path = '/files/gold/dim_brewery_type.parquet'
+        parquet_path = '/opt/airflow/files/gold/dim_brewery_type.parquet'
         df_new = pd.read_parquet(parquet_path)
         engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
         df_existing = pd.read_sql('SELECT brewery_type FROM dw.dim_brewery_type', engine)
@@ -55,7 +55,7 @@ def incremental_load_dim_brewery_type():
 
 def incremental_load_dim_brewery_name():
     try:
-        parquet_path = '/files/gold/dim_brewery_name.parquet'
+        parquet_path = '/opt/airflow/files/gold/dim_brewery_name.parquet'
         df_new = pd.read_parquet(parquet_path)
         engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
         df_existing = pd.read_sql('SELECT api_brewery_id FROM dw.dim_brewery_name', engine)
@@ -73,7 +73,7 @@ def incremental_load_dim_brewery_name():
 
 def incremental_load_fact_breweries():
     try:
-        parquet_path = '/files/gold/fact_breweries_raw.parquet'
+        parquet_path = '/opt/airflow/files/gold/fact_breweries_raw.parquet'
         df_new = pd.read_parquet(parquet_path)
         engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
         fact_existing = pd.read_sql('SELECT brewery_name_id, time_id FROM dw.fact_breweries', engine)

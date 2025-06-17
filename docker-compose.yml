@@ -1,4 +1,3 @@
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -23,21 +22,13 @@ services:
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
     command: standalone
-  
     depends_on:
       - postgres
     ports:
       - "8080:8080"
     volumes:
-      # Diretórios do seu repositório montados dentro do container
       - ./air_flow/dags:/opt/airflow/dags
       - ./air_flow/src:/opt/airflow/src
-      # Para persistência dos dados do Airflow
-      - airflow_logs:/opt/airflow/logs
-      - airflow_files:/opt/airflow/files
-    # user: "50000:0" # Use se precisar ajustar permissões
-
-volumes:
-  airflow_logs:
-  airflow_files:
+      - ./air_flow/logs:/opt/airflow/logs
+      - ./air_flow/files:/opt/airflow/files
 

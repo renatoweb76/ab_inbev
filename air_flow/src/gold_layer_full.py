@@ -4,8 +4,8 @@ from datetime import datetime
 import glob
 
 def generate_gold_files():
-    silver_path = 'air_flow/files/silver/state=*/data.parquet'
-    gold_path = 'air_flow/files/gold/'
+    silver_path = 'air_flow/opt/airflow/files/silver/state=*/data.parquet'
+    gold_path = 'air_flow/opt/airflow/files/gold/'
     arquivos = glob.glob(silver_path)
     os.makedirs(gold_path, exist_ok=True)
 
