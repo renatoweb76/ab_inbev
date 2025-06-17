@@ -1,9 +1,13 @@
 import pandas as pd
 import os
+from datetime import datetime
+
+
+current_datetime = datetime.now()
 
 def generate_gold_files_incremental():
-    silver_path = '/files/silver/all_states.parquet'
-    gold_path = '/files/gold/'
+    silver_path = 'air_flow/files/silver/all_states.parquet'
+    gold_path = 'air_flow/files/gold/'
     os.makedirs(gold_path, exist_ok=True)
 
     # 1. Ler dados novos da camada Silver
@@ -48,7 +52,7 @@ def generate_gold_files_incremental():
     df_fact_new['brewery_count'] = 1
     df_fact_new['has_website'] = df_fact_new['website_url'].notna().astype(int)
     df_fact_new['has_location'] = (df_fact_new['latitude'].notna() & df_fact_new['longitude'].notna()).astype(int)
-    df_fact_new['full_date'] = current_date
+    df_fact_new['full_date'] = current_datetime
     df_fact_new.rename(columns={'id': 'api_brewery_id', 'name': 'brewery_name'}, inplace=True)
     df_fact_new = df_fact_new[['api_brewery_id', 'brewery_name', 'city', 'state', 'country',
                                'brewery_type', 'full_date', 'brewery_count', 'has_website', 'has_location']]

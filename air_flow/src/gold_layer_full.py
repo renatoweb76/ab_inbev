@@ -3,8 +3,8 @@ import os
 from datetime import datetime
 
 def generate_gold_files():
-    silver_path = '/files/silver/all_states.parquet'
-    gold_path = '/files/gold/'
+    silver_path = 'air_flow/files/silver/all_states.parquet'
+    gold_path = 'air_flow/files/gold/'
     os.makedirs(gold_path, exist_ok=True)
 
     # 1. Ler dados da camada Silver

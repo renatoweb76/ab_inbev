@@ -89,7 +89,9 @@ with DAG(
 
     # ===== Dependências =====
     # Truncamento em paralelo
-[t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact] >> [
-    t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_fact
-]
 
+trunc_tasks = [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact]
+load_tasks = [t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_fact]
+
+for trunc_task, load_task in zip(trunc_tasks, load_tasks):
+    trunc_task >> load_task
