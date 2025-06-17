@@ -13,9 +13,9 @@ sys.path.append(SRC_PATH)
 
 # ==== Importando funções principais ====
 
-from air_flow.src.bronze_layer_full import fetch_raw_data
-from air_flow.src.silver_layer_full import transform_and_partition
-from air_flow.src.gold_layer_full import generate_gold_files
+import air_flow.src.bronze_layer_full as fetch_raw_data
+import air_flow.src.silver_layer_full as transform_and_partition
+import air_flow.src.gold_layer_full as generate_gold_files
 
 # ==== Configuração da DAG ====
 
