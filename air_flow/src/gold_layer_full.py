@@ -1,15 +1,17 @@
 import pandas as pd
 import os
 from datetime import datetime
+import glob
 
 def generate_gold_files():
-    silver_path = 'air_flow/files/silver/all_states.parquet'
+    silver_path = 'air_flow/files/silver/state=*/data.parquet'
     gold_path = 'air_flow/files/gold/'
+    arquivos = glob.glob(silver_path)
     os.makedirs(gold_path, exist_ok=True)
 
     # 1. Ler dados da camada Silver
     print("[GOLD] Lendo dados da camada Silver...")
-    df = pd.read_parquet(silver_path)
+    df = pd.concat([pd.read_parquet(arquivo) for arquivo in arquivos], ignore_index=True)
 
     # 2. Criar dimensões
     # -------------------------------------------------------------------
@@ -35,6 +37,7 @@ def generate_gold_files():
         'year': [current_date.year],
         'month': [current_date.month],
         'day': [current_date.day],
+        'quarter': [current_date.quarter],
         'day_of_week': [current_date.dayofweek],
         'week_of_year': [current_date.isocalendar().week]
     })
