@@ -22,10 +22,10 @@ def truncate_table(table):
     print(f"[FULL LOAD] Tabela truncada: dw.{table}")
 
 # ==== Importando funções de carga ====
-from air_flow.src.load_dw.load_dim_location import load_dim_location
-from air_flow.src.load_dw.load_dim_brewery_type import load_dim_brewery_type
-from air_flow.src.load_dw.load_dim_brewery_name import load_dim_brewery_name
-from air_flow.src.load_dw.load_fact_breweries import load_fact_breweries
+from load_dim_location import load_dim_location
+from load_dim_brewery_type import load_dim_brewery_type
+from load_dim_brewery_name import load_dim_brewery_name
+from load_dw.load_fact_breweries import load_fact_breweries
 
 # ==== Configuração da DAG ====
 default_args = {
