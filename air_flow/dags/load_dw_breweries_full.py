@@ -22,9 +22,9 @@ def truncate_table(table):
     print(f"[FULL LOAD] Tabela truncada: dw.{table}")
 
 # ==== Importando funções de carga ====
-from load_dwload_dim_location import load_dim_location
-from load_dwload_dim_brewery_type import load_dim_brewery_type
-from load_dwload_dim_brewery_name import load_dim_brewery_name
+from load_dw.load_dim_location import load_dim_location
+from load_dw.load_dim_brewery_type import load_dim_brewery_type
+from load_dw.load_dim_brewery_name import load_dim_brewery_name
 from load_dw.load_fact_breweries import load_fact_breweries
 from load_dw.load_dim_time import load_dim_time
 
@@ -48,9 +48,9 @@ with DAG(
         python_callable=truncate_table,
         op_args=['dim_location']
     )
-    
-    t_trunc_fact = PythonOperator(
-        task_id='truncate_fact_breweries',
+
+    t_trunc_dim_time = PythonOperator(
+        task_id='truncate_dim_time',
         python_callable=truncate_table,
         op_args=['dim_time']
     )
@@ -102,8 +102,8 @@ with DAG(
     # ===== Dependências =====
     # Truncamento em paralelo
 
-trunc_tasks = [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact]
-load_tasks = [t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_fact]
+trunc_tasks = [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_dim_time, t_trunc_fact]
+load_tasks = [t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_dim_time, t_load_fact]
 
 for trunc_task, load_task in zip(trunc_tasks, load_tasks):
     trunc_task >> load_task
