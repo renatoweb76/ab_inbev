@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+
 from datetime import datetime
 import sys
 import os
@@ -20,10 +21,10 @@ def truncate_table(table):
     print(f"[FULL LOAD] Tabela truncada: dw.{table}")
 
 # ==== Importando funções de carga ====
-from load_dim_location import load_dim_location
-from load_dim_brewery_type import load_dim_brewery_type
-from load_dim_brewery_name import load_dim_brewery_name
-from load_fact_breweries import load_fact_breweries
+from air_flow.src.load_dw.load_dim_location import load_dim_location
+from air_flow.src.load_dw.load_dim_brewery_type import load_dim_brewery_type
+from air_flow.src.load_dw.load_dim_brewery_name import load_dim_brewery_name
+from air_flow.src.load_dw.load_fact_breweries import load_fact_breweries
 
 # ==== Configuração da DAG ====
 default_args = {
@@ -87,7 +88,7 @@ with DAG(
 
     # ===== Dependências =====
     # Truncamento em paralelo
-    [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact] >> \
-    [t_load_dim_location, t_load_dim_type, t_load_dim_name]
-    [t_load_dim_location, t_load_dim_type, t_load_dim_name] >> t_load_fact
+[t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact] >> [
+    t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_fact
+]
 
