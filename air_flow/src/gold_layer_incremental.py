@@ -6,8 +6,8 @@ from datetime import datetime
 current_datetime = datetime.now()
 
 def generate_gold_files_incremental():
-    silver_path = 'air_flow/opt/airflow/files/silver/all_states.parquet'
-    gold_path = 'air_flow/opt/airflow/files/gold/'
+    silver_path = '/opt/airflow/files/silver/all_states.parquet'
+    gold_path = '/opt/airflow/files/gold/'
     os.makedirs(gold_path, exist_ok=True)
 
     # 1. Ler dados novos da camada Silver

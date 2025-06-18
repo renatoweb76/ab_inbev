@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 
 def fetch_raw_data_incremental():
-    bronze_dir = 'air_flow/opt/airflow/files/bronze/'
+    bronze_dir = '/opt/airflow/files/bronze/'
     os.makedirs(bronze_dir, exist_ok=True)
 
     # 1. Definir a data do batch

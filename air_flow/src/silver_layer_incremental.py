@@ -3,9 +3,9 @@ import os
 import glob
 
 def transform_and_partition_incremental():
-    bronze_dir = 'air_flow/opt/airflow/files/bronze/'
-    silver_file = 'air_flow/opt/airflow/files/silver/all_states.parquet'
-    os.makedirs('air_flow/opt/airflow/files/silver/', exist_ok=True)
+    bronze_dir = '/opt/airflow/files/bronze/'
+    silver_file = '/opt/airflow/files/silver/all_states.parquet'
+    os.makedirs('/opt/airflow/files/silver/', exist_ok=True)
 
     # 1. Lê todos os arquivos bronze existentes
     bronze_files = glob.glob(os.path.join(bronze_dir, 'bronze_*.parquet'))
