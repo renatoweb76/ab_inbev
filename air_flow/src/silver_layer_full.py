@@ -1,22 +1,24 @@
 import pandas as pd
 import os
+import glob
 
 def transform_and_partition():
-    df = pd.read_json('/opt/airflow/files/bronze/breweries_raw.json')
+    bronze_dir = '/opt/airflow/files/bronze/'
+    silver_dir = '/opt/airflow/files/silver/'
+    os.makedirs(silver_dir, exist_ok=True)
 
-    # Limpa e transforma os dados
-    df = df[['id', 'name', 'brewery_type', 'city', 'state', 'country', 'website_url', 'latitude', 'longitude']] 
-    df.dropna(inplace=True)
+    # Lê todos os JSONs da bronze (ajuste o padrão conforme seus arquivos)
+    bronze_files = glob.glob(os.path.join(bronze_dir, '*.json'))
+    df = pd.concat([pd.read_json(f) for f in bronze_files], ignore_index=True)
 
-    # Salvar particionado por estado
-    output_dir = '/opt/airflow/files/silver/'
-    os.makedirs(output_dir, exist_ok=True)
-    for state, group in df.groupby('state'):
-        state_dir = f'{output_dir}/state={state}'
-        os.makedirs(state_dir, exist_ok=True)
-        group.to_parquet(f'{state_dir}/data.parquet')
+    # Limpeza e transformação (ajuste as colunas conforme seu modelo)
+    df = df[['id', 'name', 'brewery_type', 'city', 'state', 'country', 'website_url', 'latitude', 'longitude']]
+    df.dropna(subset=['id', 'name', 'brewery_type', 'city', 'state', 'country'], inplace=True)
 
-    print("[SILVER] Dados transformados e salvos na camada Silver.")
+    # Salva TUDO em um único Parquet
+    df.to_parquet(os.path.join(silver_dir, 'breweries_silver.parquet'), index=False)
+
+    print("[SILVER] Dados transformados e salvos em silver")
 
 if __name__ == "__main__":
     transform_and_partition()

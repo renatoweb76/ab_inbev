@@ -11,26 +11,23 @@ def load_fact_breweries():
     dim_location = pd.read_sql('SELECT * FROM dw.dim_location', engine)
     dim_type = pd.read_sql('SELECT * FROM dw.dim_brewery_type', engine)
     dim_name = pd.read_sql('SELECT * FROM dw.dim_brewery_name', engine)
-    dim_time = pd.read_sql('SELECT time_id, full_date FROM dw.dim_time', engine)
 
     # Padronizar tipos e formatação para os joins
     for col in ['city', 'state', 'country']:
         df[col] = df[col].astype(str).str.strip().str.lower()
         dim_location[col] = dim_location[col].astype(str).str.strip().str.lower()
-    df['full_date'] = pd.to_datetime(df['full_date']).dt.date
-    dim_time['full_date'] = pd.to_datetime(dim_time['full_date']).dt.date
+    df['brewery_type'] = df['brewery_type'].astype(str).str.strip().str.lower()
+    dim_type['brewery_type'] = dim_type['brewery_type'].astype(str).str.strip().str.lower()
 
-    # Join das dimensões
+    # Join das dimensões usando as business keys
     df = df.merge(dim_location, on=['city', 'state', 'country'], how='left')
     df = df.merge(dim_type, on='brewery_type', how='left')
     df = df.merge(dim_name, on='api_brewery_id', how='left')
-    df = df.merge(dim_time, left_on='full_date', right_on='full_date', how='left')
 
     fact_df = df[[
         'location_id',
         'brewery_type_id',
         'brewery_name_id',
-        'time_id',
         'brewery_count',
         'has_website',
         'has_location'
