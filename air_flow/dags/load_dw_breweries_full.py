@@ -88,8 +88,14 @@ with DAG(
     )
 
     # ===== Dependências =====
-    trunc_tasks = [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name, t_trunc_fact]
-    load_tasks = [t_load_dim_location, t_load_dim_type, t_load_dim_name, t_load_fact]
 
-    for trunc_task, load_task in zip(trunc_tasks, load_tasks):
-        trunc_task >> load_task
+    # Truncamento seguido de carga para cada dimensão
+    t_trunc_dim_location >> t_load_dim_location
+    t_trunc_dim_type >> t_load_dim_type
+    t_trunc_dim_name >> t_load_dim_name
+
+    # Só após TODAS as dimensões carregadas, truncar a fato
+    [t_load_dim_location, t_load_dim_type, t_load_dim_name] >> t_trunc_fact
+
+    # Carregar a fato por último
+    t_trunc_fact >> t_load_fact

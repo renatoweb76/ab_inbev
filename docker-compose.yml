@@ -31,4 +31,5 @@ services:
       - ./air_flow/src:/opt/airflow/src
       - ./air_flow/logs:/opt/airflow/logs
       - ./air_flow/files:/opt/airflow/files
+      
 
