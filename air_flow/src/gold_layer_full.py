@@ -21,8 +21,8 @@ def clean_name(name):
 
 def generate_gold_files():
 
-    silver_path = 'air_flow/files/silver/breweries_silver.parquet'
-    gold_path = 'air_flow/files/gold/breweries_dataset/'
+    silver_path = '/opt/airflow/files/silver/breweries_silver.parquet'
+    gold_path = '/opt/airflow/files/gold/breweries_dataset/'
 
     #silver_path = '/opt/airflow/files/silver/breweries_silver.parquet'
     #gold_path = '/opt/airflow/files/gold/breweries_dataset/'
