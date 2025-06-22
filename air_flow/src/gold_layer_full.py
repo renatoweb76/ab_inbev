@@ -19,24 +19,37 @@ def clean_name(name):
     # Remove underscores do início/fim
     return name.strip('_')
 
-# Função para gerar os arquivos da camada Gold a partir da Silver
 def generate_gold_files():
-    silver_path = '/opt/airflow/files/silver/breweries_silver.parquet'
-    gold_path = '/opt/airflow/files/gold/breweries_dataset/'
+
+    silver_path = 'air_flow/files/silver/breweries_silver.parquet'
+    gold_path = 'air_flow/files/gold/breweries_dataset/'
+
+    #silver_path = '/opt/airflow/files/silver/breweries_silver.parquet'
+    #gold_path = '/opt/airflow/files/gold/breweries_dataset/'
     os.makedirs(gold_path, exist_ok=True)
 
     print("[GOLD] Lendo dados da camada Silver...")
     df = pd.read_parquet(silver_path)
+
+    # Garante que as colunas existem e preenche nulos
+    for col in ['country', 'state']:
+        if col not in df.columns:
+            df[col] = "unknown"
+        df[col] = df[col].fillna("unknown")
+
+    # Colunas limpas para particionamento
+    df['country'] = df['country'].map(clean_name)
+    df['state'] = df['state'].map(clean_name)
 
     # Métricas
     df['brewery_count'] = 1
     df['has_website'] = df['website_url'].notna().astype(int)
     df['has_location'] = (df['latitude'].notna() & df['longitude'].notna()).astype(int)
 
-    # Colunas limpas para particionamento
-    df['country'] = df['country'].map(clean_name)
-    df['state'] = df['state'].map(clean_name)
-
+    # Garante que country/state estão presentes e nunca nulos antes de salvar
+    assert not df['country'].isnull().any(), "Campo 'country' com nulos"
+    assert not df['state'].isnull().any(), "Campo 'state' com nulos"
+  
     table = pa.Table.from_pandas(df)
     pq.write_to_dataset(
         table,
