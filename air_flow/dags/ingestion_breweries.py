@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from datetime import datetime
 import sys
 import os
@@ -24,7 +25,7 @@ default_args = {
 
 with DAG(
     dag_id='ingestion_breweries',
-    schedule_interval='@daily',
+    schedule_interval=None,  
     catchup=False,
     default_args=default_args,
     description='Pipeline ETL de ingestão das cervejarias (bronze, silver, gold)'
