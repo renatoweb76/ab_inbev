@@ -1,0 +1,25 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/27.0.9 Chrome/134.0.6998.205 Electron/35.4.0 Safari/537.36" version="27.0.9">
+  <diagram name="Página-1" id="DHFXOnLbrtDPnQhNL8w8">
+    <mxGraphModel dx="1344" dy="841" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="S7w18V2-4oVzvs3m-p9v-1" value="Open Breweries API" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;prIcon=api" vertex="1" parent="1">
+          <mxGeometry x="96" y="145" width="50" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="S7w18V2-4oVzvs3m-p9v-8" value="" style="rounded=1;whiteSpace=wrap;html=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="343" y="182" width="653" height="382" as="geometry" />
+        </mxCell>
+        <mxCell id="S7w18V2-4oVzvs3m-p9v-5" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://miro.medium.com/v2/resize:fit:1400/1*NNtzqHo1jW4bHowmkWn7uA.png;clipPath=inset(0% 21.67% 18.35% 19.67%);" vertex="1" parent="1">
+          <mxGeometry x="347" y="127" width="150.08" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="S7w18V2-4oVzvs3m-p9v-9" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="377.08000000000004" y="314" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="S7w18V2-4oVzvs3m-p9v-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="S7w18V2-4oVzvs3m-p9v-1" target="S7w18V2-4oVzvs3m-p9v-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

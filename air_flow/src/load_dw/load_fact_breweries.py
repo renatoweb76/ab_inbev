@@ -5,10 +5,7 @@ import re
 from sqlalchemy import create_engine
 
 def extract_partition_values(filepath):
-    """
-    Extrai os valores de country e state do caminho do arquivo Parquet particionado.
-    Exemplo de path: /opt/airflow/files/gold/breweries_dataset/country=United_States/state=Wyoming/arquivo.parquet
-    """
+    """Extrai os valores de country e state do caminho do arquivo Parquet particionado."""
     match = re.search(r'country=([^/]+)/state=([^/]+)/', filepath)
     if match:
         return match.group(1), match.group(2)
@@ -61,6 +58,7 @@ def load_fact_breweries():
     df_total = pd.concat(dataframes, ignore_index=True)
     print(f"[SUCESSO] DataFrame final: {df_total.shape}")
     print(f"[DEBUG] Colunas df_total: {df_total.columns.tolist()}")
+    print(f"[DEBUG] Registros únicos brewery_name/city/state/country na gold: {df_total[['name', 'city', 'state', 'country']].drop_duplicates().shape}")
 
     # Normalização
     for col in ['city', 'state', 'country', 'brewery_type', 'name']:
@@ -87,12 +85,29 @@ def load_fact_breweries():
     if 'brewery_name' in dim_brewery_name.columns:
         dim_brewery_name['brewery_name'] = dim_brewery_name['brewery_name'].astype(str).str.strip().str.lower()
 
+    # ========= CHECAGEM DE DUPLICIDADE NAS DIMENSÕES =========
+    print("\n[DEBUG] Checagem de duplicidades nas dimensões:")
+    for dim_df, subset, nome in [
+        (dim_location, ['city', 'state', 'country'], 'dim_location'),
+        (dim_brewery_type, ['brewery_type'], 'dim_brewery_type'),
+        (dim_brewery_name, ['brewery_name'], 'dim_brewery_name')
+    ]:
+        dups = dim_df[dim_df.duplicated(subset=subset, keep=False)]
+        print(f"[{nome}] Total: {dim_df.shape[0]}, Únicos: {dim_df.drop_duplicates(subset=subset).shape[0]}")
+        if not dups.empty:
+            print(f"[ERRO GRAVE] Duplicidade na dimensão {nome} para chaves {subset}:")
+            print(dups)
+        else:
+            print(f"[OK] Dimensão {nome} sem duplicidade nas chaves {subset}")
+
+    # ========= MERGE =========
     fact = df_total \
         .merge(dim_location, on=['city', 'state', 'country'], how='left') \
         .merge(dim_brewery_type, on='brewery_type', how='left') \
         .merge(dim_brewery_name, on='brewery_name', how='left')
 
     print(f"[DEBUG] Linhas pós-merge: {fact.shape}")
+    print(f"[DEBUG] Registros únicos brewery_name/city/state/country após merge: {fact[['brewery_name', 'city', 'state', 'country']].drop_duplicates().shape}")
 
     # Campos extras da fato
     if 'brewery_count' not in fact.columns:
