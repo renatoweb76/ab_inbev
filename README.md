@@ -38,14 +38,89 @@ O pipeline é composto por múltiplas camadas:
 9. **DW**: Carregamento das dimensões e tabela fato no PostgreSQL.
 
 
-Macro processo de ETL:
+
+**Diagrama Macro: Visão Geral da Arquitetura**
+
+O diagrama abaixo representa o **fluxo macro** do pipeline de dados, partindo da ingestão da API pública até o consumo analítico em dashboards. Cada bloco representa uma etapa fundamental na arquitetura moderna de dados:
+
+* **Bronze Layer:** Armazena dados brutos (raw) em formato JSON, garantindo rastreabilidade total.
+* **Silver Layer:** Realiza limpeza, normalização e padronização, produzindo um Parquet único e consistente.
+* **Gold Layer:** Estrutura o dado em Parquet já particionado, facilitando a leitura e a carga analítica por país/estado.
+* **Data Warehouse:** Centraliza dados já prontos para análise, modelados em tabelas dimensionais e fato, em um banco relacional (PostgreSQL).
+* **Power BI:** Consumidor dos dados do DW, onde são construídos dashboards e relatórios dinâmicos para insights de negócio.
 
 ![](air_flow/img/breweries_macro.png)
 
 
-Micro processo de ETL no Airflow
+
+**Diagrama Micro: Orquestração no Airflow**
+
+
+Este segundo diagrama detalha o microprocesso de execução no Airflow, mostrando cada tarefa (task) da DAG e suas dependências:
+
+* **fetch_raw_data**: Inicia o processo baixando os dados brutos da API (bronze).
+* **transform_and_partition**: Converte, limpa e normaliza os dados, salvando o resultado em Parquet (silver).
+* **generate_gold_files**: Organiza os dados particionados prontos para carga (gold).
+* **truncate_fact_breweries**: Antes de inserir novos dados, esvazia a tabela fato (garantindo consistência).
+* **Truncates nas dimensões**: Esvazia as dimensões (location, type, name) para garantir carga limpa.
+* **Loads das dimensões**: Popula cada dimensão a partir dos dados gold.
+* **load_fact_breweries**: Por fim, executa o merge de dimensões e insere na tabela fato.
+
+O encadeamento das tasks garante a ordem correta de execução e a integridade dos dados carregados no DW.
+
 
 ![](air_flow/img/breweries_micro.png)
+
+
+## Data Warehouse
+
+O Data Warehouse deste projeto foi modelado seguindo o padrão **estrela** (*star schema* ), facilitando consultas analíticas e integração com ferramentas de BI. A estrutura centraliza os dados na tabela de **fato** (ações das cervejarias) e utiliza dimensões para descrever atributos de localização, nome e tipo de cervejaria.
+
+### Tabelas do DW
+
+#### **Tabela Fato: `fact_breweries`**
+
+Tabela central do DW, armazena eventos/contagens analíticas de cervejarias com as principais métricas e chaves estrangeiras das dimensões.
+
+**Principais campos:**
+
+* `fact_id`: Identificador único do fato.
+* `location_id`: FK para a dimensão de localização.
+* `brewery_type_id`: FK para o tipo de cervejaria.
+* `brewery_name_id`: FK para o nome da cervejaria.
+* `brewery_count`: Quantidade (usualmente 1, para granularidade por cervejaria).
+* `has_website`: Flag indicando se a cervejaria possui website (1 = sim, 0 = não).
+* `has_location`: Flag indicando se latitude e longitude estão presentes (1 = sim, 0 = não).
+* `latitude`, `longitude`: Localização geográfica (adicionados conforme seu pedido).
+* `created_at`: Data de carga do registro.
+
+#### **Dimensões**
+
+* **`dim_location`**
+
+  Armazena cidades, estados e países das cervejarias, normalizando a granularidade de localização.
+
+  * `location_id`, `city`, `state`, `country`
+* **`dim_brewery_type`**
+
+  Descreve o tipo de cervejaria (ex: micro, brewpub, large).
+
+  * `brewery_type_id`, `brewery_type`
+* **`dim_brewery_name`**
+
+  Centraliza nomes distintos de cervejarias para evitar redundância textual.
+
+  * `brewery_name_id`, `brewery_name`
+
+### Relacionamento entre tabelas
+
+O relacionamento segue a lógica:
+
+* A **tabela fato** faz referência (FK) às três dimensões, garantindo integridade e facilitando filtros/agrupamentos.
+* Cada dimensão pode ser compartilhada por múltiplos registros da fato.
+
+![](air_flow/img/dw.png)
+
 
 ## Como executar
 
