@@ -28,15 +28,12 @@ def load_fact_breweries():
     for arquivo in arquivos:
         try:
             df = pd.read_parquet(arquivo)
-
-            # Garante que as partições country/state existem, pegando do path
             country, state = extract_partition_values(arquivo)
             if 'country' not in df.columns or df['country'].isnull().all():
                 df['country'] = country
             if 'state' not in df.columns or df['state'].isnull().all():
                 df['state'] = state
 
-            # Confere colunas obrigatórias
             obrigatorias = ['id', 'name', 'brewery_type', 'city', 'state', 'country']
             faltando = [col for col in obrigatorias if col not in df.columns]
             if faltando:
@@ -108,6 +105,12 @@ def load_fact_breweries():
 
     print(f"[DEBUG] Linhas pós-merge: {fact.shape}")
     print(f"[DEBUG] Registros únicos brewery_name/city/state/country após merge: {fact[['brewery_name', 'city', 'state', 'country']].drop_duplicates().shape}")
+
+    # ========== DEDUPLICAÇÃO NA FATO ==========
+    antes = fact.shape[0]
+    fact = fact.drop_duplicates(subset=['brewery_name', 'city', 'state', 'country'])
+    depois = fact.shape[0]
+    print(f"[FATO][DEDUP] Linhas antes: {antes}, após dedup: {depois}")
 
     # Campos extras da fato
     if 'brewery_count' not in fact.columns:

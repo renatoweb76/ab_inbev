@@ -23,9 +23,6 @@ def generate_gold_files():
 
     silver_path = '/opt/airflow/files/silver/breweries_silver.parquet'
     gold_path = '/opt/airflow/files/gold/breweries_dataset/'
-
-    #silver_path = '/opt/airflow/files/silver/breweries_silver.parquet'
-    #gold_path = '/opt/airflow/files/gold/breweries_dataset/'
     os.makedirs(gold_path, exist_ok=True)
 
     print("[GOLD] Lendo dados da camada Silver...")
@@ -45,6 +42,15 @@ def generate_gold_files():
     df['brewery_count'] = 1
     df['has_website'] = df['website_url'].notna().astype(int)
     df['has_location'] = (df['latitude'].notna() & df['longitude'].notna()).astype(int)
+
+    # DEDUPLICAÇÃO POR ID!
+    if 'id' in df.columns:
+        antes = len(df)
+        df = df.drop_duplicates(subset=['id'])
+        depois = len(df)
+        print(f"[GOLD][DEDUP] Registros antes: {antes} | após dedup: {depois}")
+    else:
+        print("[GOLD][WARN] Não foi possível deduplicar pois não há coluna 'id'.")
 
     # Garante que country/state estão presentes e nunca nulos antes de salvar
     assert not df['country'].isnull().any(), "Campo 'country' com nulos"
