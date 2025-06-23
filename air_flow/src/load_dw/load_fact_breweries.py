@@ -128,7 +128,9 @@ def load_fact_breweries():
         'brewery_name_id',
         'brewery_count',
         'has_website',
-        'has_location'
+        'has_location',
+        'latitude',
+        'longitude'
     ]].copy()
 
     null_rows = fact_breweries[fact_breweries.isnull().any(axis=1)]
@@ -143,7 +145,9 @@ def load_fact_breweries():
             'brewery_name_id': int,
             'brewery_count': int,
             'has_website': int,
-            'has_location': int
+            'has_location': int,
+            'latitude': float,
+            'longitude': float
         })
         fact_breweries.to_sql('fact_breweries', engine, schema='dw', if_exists='append', index=False)
         print(f"[SUCESSO] Fato inserida: {fact_breweries.shape[0]} linhas")

@@ -4,33 +4,6 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-31" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#999999;fontColor=#999999;" edge="1" parent="1" source="rI_m-nOctpSMBKsQ7Agi-29" target="rI_m-nOctpSMBKsQ7Agi-30">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-29" value="Bronze Layer (Raw JSON)" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#999999;fontColor=#999999;" vertex="1" parent="1">
-          <mxGeometry x="247" y="181" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-33" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#999999;fontColor=#999999;" edge="1" parent="1" source="rI_m-nOctpSMBKsQ7Agi-30" target="rI_m-nOctpSMBKsQ7Agi-32">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-30" value="Silver Layer (Parquert unificado)" style="whiteSpace=wrap;html=1;rounded=1;strokeColor=#999999;fontColor=#999999;" vertex="1" parent="1">
-          <mxGeometry x="447" y="181" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-35" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#999999;fontColor=#999999;" edge="1" parent="1" source="rI_m-nOctpSMBKsQ7Agi-32" target="rI_m-nOctpSMBKsQ7Agi-34">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-32" value="Gold Layer (Parquert Particionado)" style="whiteSpace=wrap;html=1;rounded=1;strokeColor=#999999;fontColor=#999999;" vertex="1" parent="1">
-          <mxGeometry x="647" y="181" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-37" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#999999;fontColor=#999999;" edge="1" parent="1" source="rI_m-nOctpSMBKsQ7Agi-34" target="rI_m-nOctpSMBKsQ7Agi-36">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-34" value="Data Warehouse (Dimensões e Fato)" style="whiteSpace=wrap;html=1;rounded=1;strokeColor=#999999;fontColor=#999999;" vertex="1" parent="1">
-          <mxGeometry x="847" y="181" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="rI_m-nOctpSMBKsQ7Agi-36" value="Power Bi (Dashboard)" style="whiteSpace=wrap;html=1;rounded=1;strokeColor=#999999;fontColor=#999999;" vertex="1" parent="1">
-          <mxGeometry x="1047" y="181" width="120" height="60" as="geometry" />
-        </mxCell>
         <mxCell id="rI_m-nOctpSMBKsQ7Agi-40" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#999999;strokeColor=#999999;" edge="1" parent="1" source="rI_m-nOctpSMBKsQ7Agi-38" target="rI_m-nOctpSMBKsQ7Agi-39">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>

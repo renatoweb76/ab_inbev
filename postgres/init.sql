@@ -25,14 +25,13 @@ CREATE TABLE IF NOT EXISTS dw.dim_brewery_name (
 -- Tabela fato: Cervejaria
 CREATE TABLE IF NOT EXISTS dw.fact_breweries (
     fact_id SERIAL PRIMARY KEY,
-
-    location_id INT NOT NULL REFERENCES dw.dim_location(location_id),
-    brewery_type_id INT NOT NULL REFERENCES dw.dim_brewery_type(brewery_type_id),
-    brewery_name_id INT NOT NULL REFERENCES dw.dim_brewery_name(brewery_name_id),
-
+    location_id INT REFERENCES dw.dim_location(location_id),
+    brewery_type_id INT REFERENCES dw.dim_brewery_type(brewery_type_id),
+    brewery_name_id INT REFERENCES dw.dim_brewery_name(brewery_name_id),
     brewery_count INT,
     has_website INT,
     has_location INT,
-
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -23,7 +23,6 @@ Este repositório serve como base tanto para aprendizado quanto para aplicação
 
 Este projeto implementa um pipeline ETL completo para ingestão, transformação e carga de dados da API [Open Brewery DB](https://www.openbrewerydb.org/), utilizando Apache Airflow, Python e PostgreSQL. O fluxo cobre desde a ingestão bruta (bronze), passando por transformação (silver), particionamento (gold) e carga das dimensões e fatos em um Data Warehouse relacional.
 
-
 ## Arquitetura do Pipeline
 
 O pipeline é composto por múltiplas camadas:
@@ -33,12 +32,20 @@ O pipeline é composto por múltiplas camadas:
 3. **Modelagem (Gold)** : Organiza os dados em Parquet particionado por país/estado, prontos para consumo analítico.
 4. **Carga no Data Warehouse** : Popula tabelas dimensionais e fato em um banco relacional PostgreSQL.
 5. **Consumo analítico** : Conecta o DW ao Power BI para criação de dashboards interativos
+6. **Bronze**: Coleta e armazenamento dos dados brutos da API, no formato JSON.
+7. **Silver**: Normalização, limpeza e padronização dos dados, convertendo para Parquet.
+8. **Gold**: Particionamento dos dados por país/estado, prontos para ingestão no DW.
+9. **DW**: Carregamento das dimensões e tabela fato no PostgreSQL.
 
-1. **Bronze**: Coleta e armazenamento dos dados brutos da API, no formato JSON.
-2. **Silver**: Normalização, limpeza e padronização dos dados, convertendo para Parquet.
-3. **Gold**: Particionamento dos dados por país/estado, prontos para ingestão no DW.
-4. **DW**: Carregamento das dimensões e tabela fato no PostgreSQL.
 
+Macro processo de ETL:
+
+![](air_flow/img/breweries_macro.png)
+
+
+Micro processo de ETL no Airflow
+
+![](air_flow/img/breweries_micro.png)
 
 ## Como executar
 
