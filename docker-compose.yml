@@ -1,4 +1,7 @@
+version: '3'
+
 services:
+  # --- Banco de Dados de Metadados ---
   postgres:
     image: postgres:15-alpine
     environment:
@@ -10,8 +13,43 @@ services:
     volumes:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  # --- Spark Master ---
+  spark-master:
+    image: bitnami/spark:3.5
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "9090:8080" # UI do Spark Master (Mudei para 9090 para não bater com o Airflow)
+      - "7077:7077" # Porta de conexão do Spark
+    volumes:
+      - ./air_flow:/opt/airflow # Compartilha arquivos com o Spark
+
+  # --- Spark Worker ---
+  spark-worker:
+    image: bitnami/spark:3.5
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    depends_on:
+      - spark-master
+    volumes:
+      - ./air_flow:/opt/airflow # Compartilha arquivos com o Spark
+
+  # --- Airflow ---
   airflow:
-    image: apache/airflow:2.7.1-python3.9
+    build: . # Usa o Dockerfile criado no Passo 1
     container_name: airflow
     restart: always
     environment:
@@ -21,9 +59,13 @@ services:
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
+      # Variáveis para conectar ao Spark
+      JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+      SPARK_HOME: /home/airflow/.local/lib/python3.9/site-packages/pyspark
     command: standalone
     depends_on:
       - postgres
+      - spark-master
     ports:
       - "8080:8080"
     volumes:
