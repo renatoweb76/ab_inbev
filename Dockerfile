@@ -7,6 +7,8 @@ RUN apt-get update && \
     apt-get install -y openjdk-11-jdk && \
     apt-get clean;
 
+RUN curl -o /opt/airflow/postgresql-42.2.18.jar https://jdbc.postgresql.org/download/postgresql-42.2.18.jar
+
 # Define a variável JAVA_HOME
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 

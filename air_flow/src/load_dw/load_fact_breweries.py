@@ -1,158 +1,83 @@
-import pandas as pd
-import glob
-import os
-import re
-from sqlalchemy import create_engine
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, broadcast, lit, current_timestamp
+import logging
+import sys
 
-def extract_partition_values(filepath):
-    """Extrai os valores de country e state do caminho do arquivo Parquet particionado."""
-    match = re.search(r'country=([^/]+)/state=([^/]+)/', filepath)
-    if match:
-        return match.group(1), match.group(2)
-    else:
-        return None, None
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def load_fact_breweries():
-    engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
+DB_URL = "jdbc:postgresql://postgres:5432/breweries_dw"
+DB_PROPERTIES = {
+    "user": "airflow",
+    "password": "airflow",
+    "driver": "org.postgresql.Driver"
+}
 
-    dim_location = pd.read_sql('SELECT location_id, city, state, country FROM dw.dim_location', engine)
-    dim_brewery_type = pd.read_sql('SELECT brewery_type_id, brewery_type FROM dw.dim_brewery_type', engine)
-    dim_brewery_name = pd.read_sql('SELECT brewery_name_id, brewery_name FROM dw.dim_brewery_name', engine)
+def get_spark_session():
+    return SparkSession.builder \
+        .appName("Load_Fact_Breweries") \
+        .config("spark.jars", "/opt/airflow/jars/postgresql-42.2.18.jar")\
+        .getOrCreate()
 
-    arquivos = glob.glob('/opt/airflow/files/gold/breweries_dataset/country=*/state=*/*.parquet')
-    print(f"[INFO] Encontrados {len(arquivos)} arquivos para processar.")
+def run_load():
+    spark = get_spark_session()
+    try:
+        logger.info("Starting load for Fact Table: Breweries")
 
-    dataframes = []
-    arquivos_invalidos = []
+        # 1. Read Source Data (Silver)
+        logger.info("Reading Silver Layer data...")
+        df_silver = spark.read.parquet("/opt/airflow/files/silver/breweries")
 
-    for arquivo in arquivos:
-        try:
-            df = pd.read_parquet(arquivo)
-            country, state = extract_partition_values(arquivo)
-            if 'country' not in df.columns or df['country'].isnull().all():
-                df['country'] = country
-            if 'state' not in df.columns or df['state'].isnull().all():
-                df['state'] = state
+        # 2. Read Dimensions from Database (to ensure Referential Integrity)
+        # We read back the IDs we just generated in the dimension scripts
+        logger.info("Fetching Dimensions from DW...")
+        
+        df_dim_type = spark.read.jdbc(url=DB_URL, table="dw.dim_brewery_type", properties=DB_PROPERTIES)
+        df_dim_loc = spark.read.jdbc(url=DB_URL, table="dw.dim_location", properties=DB_PROPERTIES)
+        df_dim_name = spark.read.jdbc(url=DB_URL, table="dw.dim_brewery_name", properties=DB_PROPERTIES)
 
-            obrigatorias = ['id', 'name', 'brewery_type', 'city', 'state', 'country']
-            faltando = [col for col in obrigatorias if col not in df.columns]
-            if faltando:
-                print(f"[ERRO] Arquivo {arquivo} não tem as colunas obrigatórias: {faltando} (tem: {df.columns.tolist()})")
-                arquivos_invalidos.append(arquivo)
-                continue
+        # 3. Join Silver Data with Dimensions
+        # Using broadcast joins for performance as dimensions are usually smaller than facts
+        logger.info("Joining Fact with Dimensions...")
+        
+        df_fact = df_silver.alias("s") \
+            .join(broadcast(df_dim_type).alias("t"), 
+                  col("s.brewery_type") == col("t.brewery_type"), "left") \
+            .join(broadcast(df_dim_loc).alias("l"), 
+                  (col("s.city") == col("l.city")) & 
+                  (col("s.state") == col("l.state")) & 
+                  (col("s.country") == col("l.country")), "left") \
+            .join(broadcast(df_dim_name).alias("n"), 
+                  col("s.name") == col("n.name"), "left")
 
-            dataframes.append(df)
-            print(f"[OK] Arquivo lido: {arquivo} - {df.shape}")
-        except Exception as e:
-            print(f"[ERRO] Não foi possível ler o arquivo: {arquivo}")
-            print(f"       Motivo: {e}")
-            arquivos_invalidos.append(arquivo)
-
-    if not dataframes:
-        print("[ERRO FATAL] Nenhum arquivo válido foi carregado! Nada a fazer.")
-        return
-
-    df_total = pd.concat(dataframes, ignore_index=True)
-    print(f"[SUCESSO] DataFrame final: {df_total.shape}")
-    print(f"[DEBUG] Colunas df_total: {df_total.columns.tolist()}")
-    print(f"[DEBUG] Registros únicos brewery_name/city/state/country na gold: {df_total[['name', 'city', 'state', 'country']].drop_duplicates().shape}")
-
-    # Normalização
-    for col in ['city', 'state', 'country', 'brewery_type', 'name']:
-        if col in df_total.columns:
-            df_total[col] = (
-                df_total[col]
-                .astype(str)
-                .str.encode('utf-8', errors='replace')
-                .str.decode('utf-8')
-                .str.strip()
-                .str.lower()
-            )
-
-    # Renomeia 'name' para 'brewery_name'
-    if 'name' in df_total.columns and 'brewery_name' not in df_total.columns:
-        df_total = df_total.rename(columns={'name': 'brewery_name'})
-
-    # Padroniza as dimensões para join
-    for col in ['city', 'state', 'country']:
-        if col in dim_location.columns:
-            dim_location[col] = dim_location[col].astype(str).str.strip().str.lower()
-    if 'brewery_type' in dim_brewery_type.columns:
-        dim_brewery_type['brewery_type'] = dim_brewery_type['brewery_type'].astype(str).str.strip().str.lower()
-    if 'brewery_name' in dim_brewery_name.columns:
-        dim_brewery_name['brewery_name'] = dim_brewery_name['brewery_name'].astype(str).str.strip().str.lower()
-
-    # ========= CHECAGEM DE DUPLICIDADE NAS DIMENSÕES =========
-    print("\n[DEBUG] Checagem de duplicidades nas dimensões:")
-    for dim_df, subset, nome in [
-        (dim_location, ['city', 'state', 'country'], 'dim_location'),
-        (dim_brewery_type, ['brewery_type'], 'dim_brewery_type'),
-        (dim_brewery_name, ['brewery_name'], 'dim_brewery_name')
-    ]:
-        dups = dim_df[dim_df.duplicated(subset=subset, keep=False)]
-        print(f"[{nome}] Total: {dim_df.shape[0]}, Únicos: {dim_df.drop_duplicates(subset=subset).shape[0]}")
-        if not dups.empty:
-            print(f"[ERRO GRAVE] Duplicidade na dimensão {nome} para chaves {subset}:")
-            print(dups)
-        else:
-            print(f"[OK] Dimensão {nome} sem duplicidade nas chaves {subset}")
-
-    # ========= MERGE =========
-    fact = df_total \
-        .merge(dim_location, on=['city', 'state', 'country'], how='left') \
-        .merge(dim_brewery_type, on='brewery_type', how='left') \
-        .merge(dim_brewery_name, on='brewery_name', how='left')
-
-    print(f"[DEBUG] Linhas pós-merge: {fact.shape}")
-    print(f"[DEBUG] Registros únicos brewery_name/city/state/country após merge: {fact[['brewery_name', 'city', 'state', 'country']].drop_duplicates().shape}")
-
-    # ========== DEDUPLICAÇÃO NA FATO ==========
-    antes = fact.shape[0]
-    fact = fact.drop_duplicates(subset=['brewery_name', 'city', 'state', 'country'])
-    depois = fact.shape[0]
-    print(f"[FATO][DEDUP] Linhas antes: {antes}, após dedup: {depois}")
-
-    # Campos extras da fato
-    if 'brewery_count' not in fact.columns:
-        fact['brewery_count'] = 1
-    if 'has_website' not in fact.columns:
-        fact['has_website'] = fact['website_url'].apply(lambda x: 1 if pd.notnull(x) and str(x).strip() != '' else 0)
-    if 'has_location' not in fact.columns:
-        fact['has_location'] = fact.apply(
-            lambda row: 1 if pd.notnull(row.get('latitude')) and pd.notnull(row.get('longitude')) else 0, axis=1
+        # 4. Select Final Columns and Add Metrics
+        # Note: 'qty_breweries' is usually 1 at this granularity (individual brewery), 
+        # but useful for summation in BI tools.
+        df_fact_final = df_fact.select(
+            col("n.brewery_name_id"),
+            col("l.location_id"),
+            col("t.brewery_type_id"),
+            col("s.latitude"),
+            col("s.longitude"),
+            lit(1).alias("brewery_count"),
+            current_timestamp().alias("loaded_at")
         )
 
-    fact_breweries = fact[[
-        'location_id',
-        'brewery_type_id',
-        'brewery_name_id',
-        'brewery_count',
-        'has_website',
-        'has_location',
-        'latitude',
-        'longitude'
-    ]].copy()
+        # 5. Write to Database
+        logger.info("Writing data to dw.fact_breweries...")
+        df_fact_final.write.jdbc(
+            url=DB_URL, 
+            table="dw.fact_breweries", 
+            mode="overwrite", 
+            properties=DB_PROPERTIES
+        )
+        logger.info("Fact Breweries loaded successfully.")
 
-    null_rows = fact_breweries[fact_breweries.isnull().any(axis=1)]
-    if not null_rows.empty:
-        print(f"[ALERTA] {null_rows.shape[0]} linhas com FK nula serão descartadas.")
-        fact_breweries = fact_breweries.dropna()
-
-    try:
-        fact_breweries = fact_breweries.astype({
-            'location_id': int,
-            'brewery_type_id': int,
-            'brewery_name_id': int,
-            'brewery_count': int,
-            'has_website': int,
-            'has_location': int,
-            'latitude': float,
-            'longitude': float
-        })
-        fact_breweries.to_sql('fact_breweries', engine, schema='dw', if_exists='append', index=False)
-        print(f"[SUCESSO] Fato inserida: {fact_breweries.shape[0]} linhas")
     except Exception as e:
-        print(f"[ERRO FATAL] Não conseguiu inserir: {e}")
+        logger.critical(f"Failed to load Fact Breweries: {e}")
+        sys.exit(1)
+    finally:
+        spark.stop()
 
 if __name__ == "__main__":
-    load_fact_breweries()
+    run_load()

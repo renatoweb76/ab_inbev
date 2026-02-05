@@ -1,5 +1,5 @@
 services:
-  # --- Banco de Dados de Metadados ---
+  # --- Banco de Dados de Metadados & Data Warehouse ---
   postgres:
     image: postgres:15-alpine
     environment:
@@ -7,56 +7,61 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: breweries_dw
     ports:
+      # Porta externa 5435 para não brigar com seu n8n, interna 5432 padrão
       - "5435:5432"
     volumes:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      retries: 5
 
-  # --- Spark Master (Imagem Oficial) ---
+  # --- Spark Master (Processamento) ---
   spark-master:
     image: apache/spark:3.5.0
     container_name: spark-master
-    # Comando para iniciar como Master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ports:
       - "9090:8080" # UI do Spark Master
-      - "7077:7077" # Porta de conexão
+      - "7077:7077" # Porta de conexão do Cluster
     volumes:
+      # IMPORTANTE: Mapeia a pasta local para que o Spark veja o JAR do Postgres e os scripts
       - ./air_flow:/opt/airflow
 
-  # --- Spark Worker (Imagem Oficial) ---
+  # --- Spark Worker (Processamento) ---
   spark-worker:
     image: apache/spark:3.5.0
     container_name: spark-worker
-    # Comando para iniciar como Worker apontando para o Master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     depends_on:
       - spark-master
     volumes:
+      # O Worker também precisa ver o JAR para gravar no banco
       - ./air_flow:/opt/airflow
 
-  # --- Airflow ---
+  # --- Airflow (Orquestração) ---
   airflow:
-    build: .
+    build: .  # Lê o seu Dockerfile customizado (com Java + Libs)
     container_name: airflow
     restart: always
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      # Conecta no Postgres interno na porta 5432 (rede interna do Docker)
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/breweries_dw
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
-      # Variáveis para conectar ao Spark
+      # Define variáveis para o PySpark encontrar o Java
       JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-      SPARK_HOME: /home/airflow/.local/lib/python3.9/site-packages/pyspark
     command: standalone
     depends_on:
-      - postgres
-      - spark-master
+      postgres:
+        condition: service_healthy
+      spark-master:
+        condition: service_started
     ports:
       - "8080:8080"
     volumes:
-      - ./air_flow/dags:/opt/airflow/dags
-      - ./air_flow/src:/opt/airflow/src
-      - ./air_flow/logs:/opt/airflow/logs
-      - ./air_flow/files:/opt/airflow/files
+      # Mapeia tudo para dentro. O jar do postgres deve estar em ./air_flow no Windows
+      - ./air_flow:/opt/airflow

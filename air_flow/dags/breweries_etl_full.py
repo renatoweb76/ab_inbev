@@ -1,140 +1,145 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.utils.email import send_email
-from datetime import datetime
-import sys
-import os
+from airflow.operators.bash import BashOperator
+from airflow.utils.dates import days_ago
+from airflow.models import Variable
+from datetime import timedelta
 
-SRC_PATH = '/opt/airflow/src'
-sys.path.append(SRC_PATH)
-sys.path.append(os.path.join(SRC_PATH, 'load_dw'))
-
-from bronze_layer_full import fetch_raw_data  
-from silver_layer_full import transform_and_partition      
-from gold_layer_full import generate_gold_files  
-from load_dw.load_dim_location import load_dim_location
-from load_dw.load_dim_brewery_type import load_dim_brewery_type
-from load_dw.load_dim_brewery_name import load_dim_brewery_name
-from load_dw.load_fact_breweries import load_fact_breweries
-
-from sqlalchemy import create_engine
-
-def truncate_table(table):
-    engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
-    with engine.connect() as conn:
-        conn.execute(f'TRUNCATE TABLE dw.{table} RESTART IDENTITY CASCADE')
-    print(f"[FULL LOAD] Tabela truncada: dw.{table}")
-
-def alert_failure(context):
-    subject = f"[AIRFLOW] Falha na DAG: {context['task_instance'].dag_id}"
-    body = f"""
-    Task: {context['task_instance'].task_id}
-    DAG: {context['task_instance'].dag_id}
-    Execução: {context['execution_date']}
-    Log: {context['task_instance'].log_url}
-    """
-    send_email(to="seu.email@exemplo.com", subject=subject, html_content=body)
-
-def alert_success(context):
-    subject = f"[AIRFLOW] Sucesso na DAG: {context['task_instance'].dag_id}"
-    body = f"""
-    Task: {context['task_instance'].task_id}
-    DAG: {context['task_instance'].dag_id}
-    Execução: {context['execution_date']}
-    Log: {context['task_instance'].log_url}
-    """
-    send_email(to="seu.email@exemplo.com", subject=subject, html_content=body)
-
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+# Default arguments for the DAG
 default_args = {
-    'start_date': datetime(2024, 1, 1),
-    'retries': 1,
-    'email': ['carlos.soaresti@gmail.com'],
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'email': ['seu.email@exemplo.com'],
     'email_on_failure': True,
     'email_on_retry': False,
-    'email_on_success': False
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
 }
 
+# Paths inside the container (Mapped via Docker Volume)
+SPARK_MASTER = "spark://spark-master:7077"
+JAR_PATH = "/opt/airflow/jars/postgresql-42.2.18.jar"
+SRC_PATH = "/opt/airflow/src"
+
+# Template for spark-submit command
+# We use 1G memory to avoid killing the container in your local test environment
+SPARK_SUBMIT_CMD = f"""
+/opt/spark/bin/spark-submit \
+--master {SPARK_MASTER} \
+--jars {JAR_PATH} \
+--driver-memory 1G \
+--executor-memory 1G \
+"""
+
+# =============================================================================
+# DAG DEFINITION
+# =============================================================================
 with DAG(
-    dag_id='breweries_etl_full',
-    schedule_interval='0 1 * * *',
-    catchup=False,
+    dag_id='breweries_etl_spark_professional',
     default_args=default_args,
-    description='Pipeline ETL completo breweries',
-    on_failure_callback=alert_failure,
-    on_success_callback=alert_success
+    description='Professional ETL Pipeline using Spark Submit (Bronze -> Silver -> Gold -> DW)',
+    schedule_interval='0 1 * * *', # Daily at 01:00 AM
+    start_date=days_ago(1),
+    catchup=False,
+    tags=['spark', 'etl', 'medallion'],
+    # Allows passing params via UI (Trigger DAG w/ Config)
+    params={"full_load": False} 
 ) as dag:
 
-    # ========== ETL RAW (Bronze -> Silver -> Gold) ==========
-    t_fetch_raw_data = PythonOperator(
-        task_id='fetch_raw_data',
-        python_callable=fetch_raw_data
+    # =========================================================================
+    # TASK 1: BRONZE LAYER (Ingestion)
+    # =========================================================================
+    # Logic: Always fetches data from API.
+    # If full_load=True, we could potentially fetch all history (if API supported logic),
+    # but here we stick to daily snapshot logic or partitioned ingestion.
+    t_bronze = BashOperator(
+        task_id='bronze_layer_ingestion',
+        bash_command=f"""
+        {SPARK_SUBMIT_CMD} {SRC_PATH}/bronze_layer.py --date {{{{ ds }}}}
+        """
     )
 
-    t_transform_and_partition = PythonOperator(
-        task_id='transform_and_partition',
-        python_callable=transform_and_partition
+    # =========================================================================
+    # TASK 2: SILVER LAYER (Transformation)
+    # =========================================================================
+    # Logic: 
+    # - Incremental (Default): Processes only the folder ingestion_date=YYYY-MM-DD
+    # - Full Load (Manual Trigger): Processes ALL folders (*)
+    # We use Jinja templating to check the 'full_load' param.
+    t_silver = BashOperator(
+        task_id='silver_layer_transformation',
+        bash_command=f"""
+        {% if params.full_load %}
+            echo "TRIGGERING FULL LOAD FOR SILVER LAYER..."
+            {SPARK_SUBMIT_CMD} {SRC_PATH}/silver_layer.py
+        {% else %}
+            echo "RUNNING INCREMENTAL LOAD FOR DATE: {{{{ ds }}}}"
+            {SPARK_SUBMIT_CMD} {SRC_PATH}/silver_layer.py --date {{{{ ds }}}}
+        {% endif %}
+        """
     )
 
-    t_generate_gold_files = PythonOperator(
-        task_id='generate_gold_files',
-        python_callable=generate_gold_files
+    # =========================================================================
+    # TASK 3: GOLD LAYER (Aggregation)
+    # =========================================================================
+    # Logic: Gold usually aggregates full history to ensure numbers are correct.
+    t_gold = BashOperator(
+        task_id='gold_layer_aggregation',
+        bash_command=f"""
+        {SPARK_SUBMIT_CMD} {SRC_PATH}/gold_layer.py
+        """
     )
 
-    # ========== TRUNCATE TABELAS ==========
-    t_trunc_fact = PythonOperator(
-        task_id='truncate_fact_breweries',
-        python_callable=truncate_table,
-        op_args=['fact_breweries']
-    )
-    t_trunc_dim_location = PythonOperator(
-        task_id='truncate_dim_location',
-        python_callable=truncate_table,
-        op_args=['dim_location']
-    )
-    t_trunc_dim_type = PythonOperator(
-        task_id='truncate_dim_brewery_type',
-        python_callable=truncate_table,
-        op_args=['dim_brewery_type']
-    )
-    t_trunc_dim_name = PythonOperator(
-        task_id='truncate_dim_brewery_name',
-        python_callable=truncate_table,
-        op_args=['dim_brewery_name']
-    )
-
-    # ========== CARGA DIMENSÕES ==========
-    t_load_dim_location = PythonOperator(
-        task_id='load_dim_location',
-        python_callable=load_dim_location
-    )
-    t_load_dim_type = PythonOperator(
+    # =========================================================================
+    # TASK 4: DW LOADS (Dimensions) - Parallel Execution
+    # =========================================================================
+    # These scripts use mode="overwrite", so they handle Idempotency automatically.
+    
+    t_dim_type = BashOperator(
         task_id='load_dim_brewery_type',
-        python_callable=load_dim_brewery_type
+        bash_command=f"{SPARK_SUBMIT_CMD} {SRC_PATH}/load_dw/load_dim_brewery_type.py"
     )
-    t_load_dim_name = PythonOperator(
+
+    t_dim_location = BashOperator(
+        task_id='load_dim_location',
+        bash_command=f"{SPARK_SUBMIT_CMD} {SRC_PATH}/load_dw/load_dim_location.py"
+    )
+
+    t_dim_name = BashOperator(
         task_id='load_dim_brewery_name',
-        python_callable=load_dim_brewery_name
+        bash_command=f"{SPARK_SUBMIT_CMD} {SRC_PATH}/load_dw/load_dim_brewery_name.py"
     )
 
-    # ========== CARGA FATO ==========
-    t_load_fact = PythonOperator(
+    # =========================================================================
+    # TASK 5: DW LOAD (Fact)
+    # =========================================================================
+    t_fact_breweries = BashOperator(
         task_id='load_fact_breweries',
-        python_callable=load_fact_breweries
+        bash_command=f"{SPARK_SUBMIT_CMD} {SRC_PATH}/load_dw/load_fact_breweries.py"
     )
 
-    # ========== Dependências ==========
-    # Pipeline Bronze → Silver → Gold
-    t_fetch_raw_data >> t_transform_and_partition >> t_generate_gold_files
-
-    # Truncar fato ANTES de tudo do DW
-    t_generate_gold_files >> t_trunc_fact
-
-    # Só depois truncar e carregar dimensões
-    t_trunc_fact >> [t_trunc_dim_location, t_trunc_dim_type, t_trunc_dim_name]
-    t_trunc_dim_location >> t_load_dim_location
-    t_trunc_dim_type >> t_load_dim_type
-    t_trunc_dim_name >> t_load_dim_name
-
-    # Só depois das dimensões carregadas, carregar a fato
-    [t_load_dim_location, t_load_dim_type, t_load_dim_name] >> t_load_fact
-
+    # =========================================================================
+    # ORCHESTRATION FLOW
+    # =========================================================================
+    
+    # 1. Ingest and Transform (Bronze -> Silver)
+    t_bronze >> t_silver
+    
+    # 2. Update Analytical View (Silver -> Gold)
+    t_silver >> t_gold
+    
+    # 3. Load Dimensions (Parallel) - Can start as soon as Silver is ready
+    # Note: If dimensions depended on Gold, we would move this. 
+    # But usually dimensions come from Silver (Master Data).
+    t_silver >> [t_dim_type, t_dim_location, t_dim_name]
+    
+    # 4. Load Fact (Dependent on Gold logic OR Silver logic + Dimensions loaded)
+    # Ensuring Dims are ready before Fact to avoid Foreign Key issues
+    [t_dim_type, t_dim_location, t_dim_name] >> t_fact_breweries
+    
+    # Optional: Ensure Gold is done before Fact if Fact depends on Gold metrics, 
+    # but in our script Fact reads Silver. Let's keep Gold parallel to DW load 
+    # or as a dependency if needed. 
+    # Current flow: Gold runs alongside DW loads.

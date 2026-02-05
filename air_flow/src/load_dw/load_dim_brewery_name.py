@@ -1,67 +1,55 @@
-import pandas as pd
-from sqlalchemy import create_engine
-import glob
-import os
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, row_number, trim
+from pyspark.sql.window import Window
+import logging
+import sys
 
-def load_dim_brewery_name():
-    arquivos = glob.glob('/opt/airflow/files/gold/breweries_dataset/country=*/state=*/*.parquet')
-    print(f"[INFO] Encontrados {len(arquivos)} arquivos para processar.")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-    dataframes = []
-    arquivos_lidos = 0
-    arquivos_invalidos = []
+DB_URL = "jdbc:postgresql://postgres:5432/breweries_dw"
+DB_PROPERTIES = {
+    "user": "airflow",
+    "password": "airflow",
+    "driver": "org.postgresql.Driver"
+}
 
-    for arquivo in arquivos:
-        try:
-            if os.path.getsize(arquivo) == 0:
-                print(f"[AVISO] Arquivo vazio (ignorado): {arquivo}")
-                arquivos_invalidos.append(arquivo)
-                continue
+def get_spark_session():
+    return SparkSession.builder \
+        .appName("Load_Dim_Brewery_Name") \
+        .config("spark.jars", "/opt/airflow/jars/postgresql-42.2.18.jar") \
+        .getOrCreate()
 
-            df = pd.read_parquet(arquivo)
-            if df.empty:
-                print(f"[AVISO] DataFrame vazio (ignorado): {arquivo}")
-                arquivos_invalidos.append(arquivo)
-                continue
-
-            dataframes.append(df)
-            arquivos_lidos += 1
-            print(f"[OK] Arquivo lido: {arquivo} - {df.shape}")
-        except Exception as e:
-            print(f"[ERRO] Não foi possível ler o arquivo: {arquivo}")
-            print(f"       Motivo: {e}")
-            arquivos_invalidos.append(arquivo)
-
-    if not dataframes:
-        print("[ERRO FATAL] Nenhum arquivo válido foi carregado! Nada a fazer.")
-        return
-
-    df_total = pd.concat(dataframes, ignore_index=True)
-    print(f"[SUCESSO] Total de arquivos lidos: {arquivos_lidos}")
-    print(f"[SUCESSO] DataFrame final: {df_total.shape}")
-    print(f"[INFO] Arquivos inválidos/ignorados: {len(arquivos_invalidos)}")
-
-    # Monta dimensão brewery_name
-    dim_name = (
-        df_total[['id', 'name']]
-        .drop_duplicates()
-        .reset_index(drop=True)
-        .rename(columns={'id': 'api_brewery_id', 'name': 'brewery_name'})
-    )
-    dim_name['brewery_name_id'] = dim_name.index + 1
-
-    # Conecta ao banco de dados PostgreSQL
-    engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
-    print("[DEBUG] Tentando inserir na tabela 'dw.dim_brewery_name'...")
-    print(dim_name.head())
-
-    # Verifica se a tabela já existe
+def run_load():
+    spark = get_spark_session()
     try:
-        dim_name.to_sql('dim_brewery_name', engine, schema='dw', if_exists='append', index=False)
-        print("[DW] Dimensão brewery_name carregada.")
-    except Exception as e:
-        print(f"[ERRO FATAL] Não conseguiu inserir: {e}")
+        logger.info("Starting load for Dimension: Brewery Name")
         
-if __name__ == "__main__":
-    load_dim_brewery_name()
+        input_path = "/opt/airflow/files/silver/breweries"
+        df_silver = spark.read.parquet(input_path)
+        
+        # We use 'id' from API as the business key, but generate our own SK
+        df_dim = df_silver.select(col("brewery_id").alias("api_id"), col("name")) \
+            .distinct() \
+            .filter(col("name").isNotNull())
 
+        w = Window.orderBy("name")
+        df_dim = df_dim.withColumn("brewery_name_id", row_number().over(w))
+
+        logger.info("Writing data to dw.dim_brewery_name...")
+        df_dim.write.jdbc(
+            url=DB_URL, 
+            table="dw.dim_brewery_name", 
+            mode="overwrite", 
+            properties=DB_PROPERTIES
+        )
+        logger.info("Dimension Brewery Name loaded successfully.")
+
+    except Exception as e:
+        logger.critical(f"Failed to load Dim Brewery Name: {e}")
+        sys.exit(1)
+    finally:
+        spark.stop()
+
+if __name__ == "__main__":
+    run_load()
