@@ -37,9 +37,9 @@ SPARK_SUBMIT_CMD = f"""
 # DAG DEFINITION
 # =============================================================================
 with DAG(
-    dag_id='breweries_etl_spark_professional',
+    dag_id='breweries_etl_spark',
     default_args=default_args,
-    description='Professional ETL Pipeline using Spark Submit (Bronze -> Silver -> Gold -> DW)',
+    description='ETL Pipeline using Spark Submit (Bronze -> Silver -> Gold -> DW)',
     schedule_interval='0 1 * * *', # Daily at 01:00 AM
     start_date=days_ago(1),
     catchup=False,

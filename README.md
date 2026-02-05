@@ -102,8 +102,8 @@ The DW follows a **Star Schema** design to optimize analytical queries.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/renatoweb76/test_ab_inbev.git](https://github.com/renatoweb76/test_ab_inbev.git)
-    cd test_ab_inbev
+    git clone [https://github.com/renatoweb76/test_ab_inbev.git](https://github.com/renatoweb76/ab_inbev.git)
+    cd ab_inbev
     ```
 
 2.  **Download JDBC Driver (Crucial Step):**
@@ -131,7 +131,7 @@ The DW follows a **Star Schema** design to optimize analytical queries.
 ## 6. How to Run the Pipeline
 
 ### Option A: Standard Daily Run (Incremental)
-1.  Enable the DAG `breweries_etl_spark_professional` in the Airflow UI.
+1.  Enable the DAG `breweries_etl_spark` in the Airflow UI.
 2.  It will run automatically based on the schedule.
 3.  To test manually: Click the **"Play"** button -> **"Trigger DAG"**.
 
@@ -174,9 +174,10 @@ ab_inbev/
     │       ├── load_dim_brewery_name.py
     │       └── load_fact_breweries.py
     ├── files/               # Local Data Lake Storage (Bronze/Silver/Gold)
-    └── logs/                # Execution logs
+    └── logs/                # Execution logs 
+```
 
----
+--- 
 
 ## 8. Analytics (Power BI)
 
