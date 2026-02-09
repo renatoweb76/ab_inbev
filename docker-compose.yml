@@ -41,18 +41,16 @@ services:
 
   # --- Airflow (Orquestração) ---
   airflow:
-    build: .  # Lê o seu Dockerfile customizado (com Java + Libs)
+    build: .
     container_name: airflow
     restart: always
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      # Conecta no Postgres interno na porta 5432 (rede interna do Docker)
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/breweries_dw
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
-      # Define variáveis para o PySpark encontrar o Java
       JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
     command: standalone
     depends_on:
@@ -63,5 +61,10 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Mapeia tudo para dentro. O jar do postgres deve estar em ./air_flow no Windows
-      - ./air_flow:/opt/airflow
+      # [cite_start]--- CORREÇÃO AQUI: Mapeie subpastas, não a raiz --- [cite: 33]
+      - ./air_flow/dags:/opt/airflow/dags
+      - ./air_flow/logs:/opt/airflow/logs
+      - ./air_flow/plugins:/opt/airflow/plugins
+      - ./air_flow/files:/opt/airflow/files
+      - ./air_flow/jars:/opt/airflow/jars
+      - ./air_flow/src:/opt/airflow/src
