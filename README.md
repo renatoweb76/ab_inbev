@@ -102,7 +102,7 @@ The DW follows a **Star Schema** design to optimize analytical queries.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/renatoweb76/test_ab_inbev.git](https://github.com/renatoweb76/ab_inbev.git)
+    git clone [https://github.com/renatoweb76/ab_inbev.git](https://github.com/renatoweb76/ab_inbev.git)
     cd ab_inbev
     ```
 
