@@ -1,64 +1,60 @@
-import pandas as pd
-from sqlalchemy import create_engine
-import glob
-import os
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, row_number
+from pyspark.sql.window import Window
+import logging
+import sys
 
-def load_dim_brewery_type():
-    arquivos = glob.glob('/opt/airflow/files/gold/breweries_dataset/country=*/state=*/*.parquet')
-    print(f"[INFO] Encontrados {len(arquivos)} arquivos para processar.")
+# Configure Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-    dataframes = []
-    arquivos_lidos = 0
-    arquivos_invalidos = []
+# Database Configuration
+DB_URL = "jdbc:postgresql://postgres:5432/breweries_dw"
+DB_PROPERTIES = {
+    "user": "airflow",
+    "password": "airflow",
+    "driver": "org.postgresql.Driver"
+}
 
-    for arquivo in arquivos:
-        try:
-            if os.path.getsize(arquivo) == 0:
-                print(f"[AVISO] Arquivo vazio (ignorado): {arquivo}")
-                arquivos_invalidos.append(arquivo)
-                continue
+def get_spark_session():
+    """Initializes Spark with JDBC Driver."""
+    return SparkSession.builder \
+        .appName("Load_Dim_Brewery_Type") \
+        .config("spark.jars", "/opt/airflow/jars/postgresql-42.2.18.jar")\
+        .getOrCreate()
 
-            df = pd.read_parquet(arquivo)
-            if df.empty:
-                print(f"[AVISO] DataFrame vazio (ignorado): {arquivo}")
-                arquivos_invalidos.append(arquivo)
-                continue
-
-            dataframes.append(df)
-            arquivos_lidos += 1
-            print(f"[OK] Arquivo lido: {arquivo} - {df.shape}")
-        except Exception as e:
-            print(f"[ERRO] Não foi possível ler o arquivo: {arquivo}")
-            print(f"       Motivo: {e}")
-            arquivos_invalidos.append(arquivo)
-
-    if not dataframes:
-        print("[ERRO FATAL] Nenhum arquivo válido foi carregado! Nada a fazer.")
-        return
-
-    # Concatena todos os DataFrames lidos
-    df_total = pd.concat(dataframes, ignore_index=True)
-    print(f"[SUCESSO] Total de arquivos lidos: {arquivos_lidos}")
-    print(f"[SUCESSO] DataFrame final: {df_total.shape}")
-    print(f"[INFO] Arquivos inválidos/ignorados: {len(arquivos_invalidos)}")
-
-   # Monta a dimensão brewery_type
-    dim_type = (
-        df_total[['brewery_type']]
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
-    dim_type['brewery_type_id'] = dim_type.index + 1
-
-    # Conecta ao banco de dados PostgreSQL
-    engine = create_engine('postgresql://airflow:airflow@postgres:5432/breweries_dw')
-    
-    # Verifica se a tabela já existe e tenta inserir
+def run_load():
+    spark = get_spark_session()
     try:
-        dim_type.to_sql('dim_brewery_type', engine, schema='dw', if_exists='append', index=False)
-        print("[DW] Dimensão brewery_type carregada.")
+        logger.info("Starting load for Dimension: Brewery Type")
+        
+        # Read unique types from Silver Layer
+        input_path = "/opt/airflow/files/silver/breweries"
+        df_silver = spark.read.parquet(input_path)
+        
+        df_dim = df_silver.select("brewery_type") \
+            .distinct() \
+            .filter(col("brewery_type").isNotNull())
+
+        # Generate Surrogate Key (ID)
+        w = Window.orderBy("brewery_type")
+        df_dim = df_dim.withColumn("brewery_type_id", row_number().over(w))
+
+        # Write to Database (Overwrite/Full Load)
+        logger.info("Writing data to dw.dim_brewery_type...")
+        df_dim.write.jdbc(
+            url=DB_URL, 
+            table="dw.dim_brewery_type", 
+            mode="overwrite", 
+            properties=DB_PROPERTIES
+        )
+        logger.info("Dimension Brewery Type loaded successfully.")
+
     except Exception as e:
-        print(f"[ERRO FATAL] Não conseguiu inserir: {e}")
+        logger.critical(f"Failed to load Dim Brewery Type: {e}")
+        sys.exit(1)
+    finally:
+        spark.stop()
 
 if __name__ == "__main__":
-    load_dim_brewery_type()
+    run_load()

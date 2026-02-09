@@ -1,5 +1,5 @@
 services:
-  # --- Banco de Dados de Metadados ---
+  # --- Banco de Dados de Metadados & Data Warehouse ---
   postgres:
     image: postgres:15-alpine
     environment:
@@ -7,47 +7,41 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: breweries_dw
     ports:
-      - "5432:5432"
+      # Porta externa 5435 para não brigar com seu n8n, interna 5432 padrão
+      - "5435:5432"
     volumes:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      retries: 5
 
-  # --- Spark Master ---
+  # --- Spark Master (Processamento) ---
   spark-master:
-    image: bitnami/spark:3.5
+    image: apache/spark:3.5.0
     container_name: spark-master
-    environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ports:
-      - "9090:8080" # UI do Spark Master (Mudei para 9090 para não bater com o Airflow)
-      - "7077:7077" # Porta de conexão do Spark
+      - "9090:8080" # UI do Spark Master
+      - "7077:7077" # Porta de conexão do Cluster
     volumes:
-      - ./air_flow:/opt/airflow # Compartilha arquivos com o Spark
+      # IMPORTANTE: Mapeia a pasta local para que o Spark veja o JAR do Postgres e os scripts
+      - ./air_flow:/opt/airflow
 
-  # --- Spark Worker ---
+  # --- Spark Worker (Processamento) ---
   spark-worker:
-    image: bitnami/spark:3.5
+    image: apache/spark:3.5.0
     container_name: spark-worker
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     depends_on:
       - spark-master
     volumes:
-      - ./air_flow:/opt/airflow # Compartilha arquivos com o Spark
+      # O Worker também precisa ver o JAR para gravar no banco
+      - ./air_flow:/opt/airflow
 
-  # --- Airflow ---
+  # --- Airflow (Orquestração) ---
   airflow:
-    build: . # Usa o Dockerfile criado no Passo 1
+    build: .
     container_name: airflow
     restart: always
     environment:
@@ -57,19 +51,20 @@ services:
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
-      # Variáveis para conectar ao Spark
       JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-      SPARK_HOME: /home/airflow/.local/lib/python3.9/site-packages/pyspark
     command: standalone
     depends_on:
-      - postgres
-      - spark-master
+      postgres:
+        condition: service_healthy
+      spark-master:
+        condition: service_started
     ports:
       - "8080:8080"
     volumes:
+      # [cite_start]--- CORREÇÃO AQUI: Mapeie subpastas, não a raiz --- [cite: 33]
       - ./air_flow/dags:/opt/airflow/dags
-      - ./air_flow/src:/opt/airflow/src
       - ./air_flow/logs:/opt/airflow/logs
+      - ./air_flow/plugins:/opt/airflow/plugins
       - ./air_flow/files:/opt/airflow/files
-      
-
+      - ./air_flow/jars:/opt/airflow/jars
+      - ./air_flow/src:/opt/airflow/src
